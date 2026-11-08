@@ -1,142 +1,139 @@
-# LYTE
+# LYTE Simulator
 
-**Audio-reactive LED visualizer: browser simulator**
+Browser simulator for the LYTE audio-reactive LED display.
 
-LYTE is a standalone audio visualizer built around a 64 × 64 RGB LED matrix. It listens to the room through a
-microphone, analyses the music in real time, and renders generative light patterns that follow its rhythm, timbre,
-melody and structure. The unit is designed to sit alongside a high-fidelity audio system: a walnut enclosure with a
-smoked acrylic window, a single control button and two dials.
+Live version: https://rubyc00p.github.io/lyte-sim/
 
-This repository hosts the browser simulator. It runs the unit's production firmware, compiled to WebAssembly, so the
-picture on screen is the picture the LED panel draws.
+## Overview
 
-**[Open the simulator →](https://rubyc00p.github.io/lyte-sim/)**
+LYTE is an audio-reactive display built on a 64 x 64 RGB LED matrix. The device samples ambient audio through a
+microphone, performs real-time spectral analysis, and generates visual output from the rhythmic, timbral, melodic and
+structural features of the signal.
 
----
+The simulator runs the device firmware compiled to WebAssembly. The rendered output is identical to the output sent to
+the LED matrix.
 
-## Using the simulator
+## Audio Input
 
-### Audio sources
-
-| Source | Description |
+| Input | Description |
 |---|---|
-| **Test songs** | Six synthesized arrangements (beat, synth/electronic, country ballad, rock, ambient, slow jam), generated live in the browser. Each one exercises a different musical profile. |
-| **Audio file** | Any audio or video file the browser can decode, analysed live as it plays. |
-| **Microphone** | The device microphone, analysed as the unit analyses a room. |
-| **Tab audio** | The sound of another browser tab (a streaming service or web player), captured digitally through the browser's tab-sharing dialog. Select the tab and enable **Share tab audio**. Chrome and Edge on desktop. |
+| Test tracks | Six reference tracks synthesized in the browser: Beat, Synth, Country, Rock, Ambient, Slow jam. |
+| Audio file | Local audio or video file decoded by the browser. |
+| Microphone | Device microphone. |
+| Tab audio | Audio captured from another browser tab. Enable "Share tab audio" in the sharing dialog. Chrome and Edge (desktop) only. |
 
-### Controls
+## Controls
 
 | Control | Function |
 |---|---|
-| **PATTERN** | The unit's single button. Tap: next visual program. Hold: next palette. Hold 4 s: return to Auto. |
-| **Pattern** | Auto, or one fixed visual program. |
-| **Palette** | Auto, or one fixed colour palette. |
-| **Sensitivity** | Input gain relative to the room (0.25× to 4×). On the unit, a front-panel dial. |
-| **Brightness** | Panel brightness. On the unit, a front-panel dial. |
-| **View** | Display emulation: the smoked window, and the light spill between LEDs. |
-| **Unit settings** | Output contrast, the three-mirror kaleidoscope's glass rendering, whether Smoke takes part in Auto, and the classic portal. |
+| PATTERN | Emulates the hardware button. Short press: next pattern. Long press: next palette. 4 s press: Auto. |
+| Pattern | Auto or a fixed pattern. |
+| Palette | Auto or a fixed palette. |
+| Sensitivity | Input gain, 0.25x to 4x. |
+| Brightness | Output brightness. |
+| View | Display emulation: diffuser window and LED glow. |
+| Unit settings | Output contrast, 3-mirror kaleidoscope rendering, Smoke in Auto rotation, classic portal. |
 
-A link can preset the program, palette and test song, for example `?mode=6&pal=4&demo=ambient`.
+### URL Parameters
 
----
+| Parameter | Values |
+|---|---|
+| `mode` | Pattern index, 0 to 6 (see Patterns) |
+| `pal` | Palette index, 0 to 7 (see Palettes) |
+| `demo` | `beat`, `synth`, `country`, `rock`, `ambient`, `slowjam` |
 
-## System overview
+Example: `?mode=6&pal=4&demo=ambient`
 
-```
-Audio input
-  → Spectral analysis
-  → Seven-register decomposition, normalized to the room
-  → Onset detection and hit / tone classification
-  → Musical features: tempo and beat phase, timbre, density, voice, dynamics, key colour
-  → Structure: song boundaries, builds, breaks, drops and climaxes
-  → Direction: program and palette selection
-  → Rendering
-  → Exposure and tone mapping
-  → LED output
-```
+## Signal Processing
 
-**Adaptive level.** Every register is normalized against the room's own recent loudness, so the unit responds the
-same way at background volume and at full volume. The level memory persists across power cycles.
+1. Spectral analysis
+2. Decomposition into seven frequency bands, normalized to ambient level
+3. Onset detection and classification (percussive or tonal)
+4. Feature extraction: tempo, beat phase, timbre, density, pitch, vocal presence, dynamics
+5. Structure detection: track boundaries, builds, breaks, drops
+6. Pattern and palette selection
+7. Rendering
+8. Tone mapping and output
 
-**Hits and tones.** Each onset is classified as a percussive hit (a drum) or a sustained tone (a note or chord), and
-the two drive the picture differently: hits produce impulses, tones produce forms that hold.
+Band levels are normalized against a running estimate of ambient loudness, so the response is consistent across
+playback volumes. Calibration is retained across power cycles.
 
-**Structure.** The unit tracks where a song is in its arc. Lifts, drops and climaxes are recognized when several
-independent musical signs agree, and each is marked in the picture: a change of style, the three-mirror kaleidoscope,
-or a jump to hyperspace. Silence between songs resets per-song state.
+Percussive onsets generate transient elements. Tonal onsets generate sustained elements.
 
-**Direction.** In Auto, the visual program and the palette are chosen from the character of the music (tempo,
-percussiveness, density, bass behaviour, voice, mood) and changed at musically meaningful moments, not on a timer.
+Section changes are detected when several independent features agree. Each detected event triggers a
+pattern-specific response. Silence between tracks resets per-track state.
 
----
+In Auto, the pattern and palette are selected from signal characteristics (tempo, percussiveness, density,
+low-frequency content, vocal presence, mood) and changed at detected section boundaries.
 
-## Register-to-form mapping
+## Band-to-Shape Mapping
 
-Each register of the spectrum has its own visual vocabulary. Low sounds are wide and sit low in the frame; high sounds
-are narrow and sit high. Loudness sets size, timbre sets the edge (a clean tone is solid, a noisy one broken), and
-each register holds its own position in the active palette.
-
-| Register | Typical content | Form |
+| Band | Typical sources | Shape |
 |---|---|---|
-| Sub | Kick fundamentals, sub-bass, 808s | Wide block |
+| Sub | Kick fundamental, sub-bass, 808 | Wide block |
 | Bass | Bass guitar, synth bass, low toms | Block |
-| Low-mid | Guitar body, piano left hand, low voice | Hexagon |
-| Mid | Voice, guitar, keys, snare body | Oval |
-| High-mid | Vocal presence, snare crack, guitar edge | Diamond |
+| Low-mid | Guitar body, piano, low vocals | Hexagon |
+| Mid | Vocals, guitar, keys, snare body | Oval |
+| High-mid | Vocal presence, snare attack, guitar edge | Diamond |
 | Presence | Cymbals, consonants, string noise | Triangle |
 | Air | Hi-hats, shimmer | Needle |
 
-The strongest register at any moment is held as a single focal form at the centre, which morphs as the lead register
-changes.
+Lower bands render wider and lower in the frame. Higher bands render narrower and higher. Amplitude controls size.
+Timbre controls edge rendering (tonal content renders solid, noisy content renders broken). Each band has a fixed
+position in the active palette. The dominant band is rendered as a central element.
 
----
+## Patterns
 
-## Visual programs
+| Index | Pattern | Description |
+|---|---|---|
+| 0 | Auto | Automatic pattern selection. |
+| 1 | Kaleidoscope | Mirrored colored segments in a rotating cell. Two- or three-mirror geometry. |
+| 2 | Hyperspace | Tunnel with beat-synchronized gates. Jump sequence on detected drops. |
+| 3 | Rings | Rings spawned by band onsets, moving toward the center, colored by band. |
+| 4 | Shapes | Direct rendering of the band-to-shape mapping. |
+| 5 | Plasma | Contour field with stepped color. Kick modulates ripple, bass modulates scale. |
+| 6 | Smoke | Fluid simulation. Bass, vocal and percussive content inject dye. Hue shifts on snare onsets and drops. |
 
-| Program | Description |
+## Palettes
+
+| Index | Palette |
 |---|---|
-| **Kaleidoscope** | Coloured glass pieces in a rotating mirror cell. Two- and three-mirror geometries; the mirror count and piece style follow the music. |
-| **Hyperspace** | A curved tunnel of streaking light. Gates arrive on the beat, shaped by the music; jumps happen on real drops. |
-| **Rings** | Rings born from each register's hits, travelling toward the centre in that register's colour. |
-| **Shapes** | The register-to-form vocabulary directly: each sound becomes its shape, around the focal form. |
-| **Plasma** | A flowing contour field in colour bands, rippled by the kick, its scale swelling with the bass. |
-| **Smoke** | A fluid simulation on the picture itself: the bass, voice and percussion feed coloured smoke that the music swirls. Colour shifts on snares and drops. |
-| **Auto** | Chooses among the programs and palettes by the character and structure of the music. |
+| 0 | Auto |
+| 1 | Dial |
+| 2 | Amber |
+| 3 | VFD |
+| 4 | Hot |
+| 5 | Ember |
+| 6 | Vivid |
+| 7 | Dusk |
 
----
-
-## Colour palettes
-
-**Dial · Amber · VFD · Hot · Ember · Vivid · Dusk**: seven palettes drawn from vintage audio equipment and the
-character of the music. In Auto the palette follows the song's mood. Within a palette, colour drifts with the
-melody, or with the voice when someone is singing.
-
----
+In Auto, the palette follows the detected mood of the track. Hue drift within a palette follows the melody or vocal
+line.
 
 ## Hardware
 
-| Component | Description |
+| Component | Specification |
 |---|---|
-| Display | 64 × 64 RGB LED matrix (HUB75), 8-bit PWM per channel |
-| Processing | Dual-core 240 MHz microcontroller: analysis and rendering split across both cores |
-| Input | MEMS digital microphone |
-| Controls | One momentary button; brightness and sensitivity dials |
-| Enclosure | Walnut with a smoked acrylic window |
-
----
+| Display | 64 x 64 RGB LED matrix, HUB75, 8-bit PWM per channel |
+| Controller | Dual-core 240 MHz microcontroller |
+| Audio input | MEMS digital microphone |
+| Controls | Push button, brightness and sensitivity knobs |
+| Enclosure | Walnut, smoked acrylic window |
 
 ## Privacy
 
-All audio is processed locally in your browser. Nothing is recorded, uploaded or stored, except the room's level
-calibration, which is kept in this browser's local storage.
+Audio is processed locally in the browser. No audio is recorded, transmitted or stored. Level calibration is stored in
+browser local storage.
 
-## Browser support
+## Browser Support
 
-Current Chrome, Edge, Firefox and Safari, on desktop and mobile. Tab audio requires Chrome or Edge on desktop. The
-microphone requires opening the page directly in a browser (not inside another app's embedded view).
+| Feature | Browsers |
+|---|---|
+| Simulator, test tracks, audio file | Current Chrome, Edge, Firefox, Safari (desktop and mobile) |
+| Microphone | As above. The page must be opened directly, not in an in-app browser. |
+| Tab audio | Chrome, Edge (desktop) |
 
----
+## Copyright
 
-© 2026 rubyC00P. All rights reserved. This repository contains a compiled build of the simulator only; no source code
-is published and no license is granted.
+© 2026 rubyC00P. All rights reserved. This repository contains a compiled build only. No source code is published and
+no license is granted.

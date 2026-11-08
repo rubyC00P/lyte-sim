@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>LYTE · simulator</title>
-<meta name="description" content="LYTE, a 64×64 LED music visualizer: the unit's own firmware running in the browser.">
+<title>LYTE Simulator</title>
+<meta name="description" content="Browser simulator for the LYTE audio-reactive LED display.">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap">
 <style>
 :root{
@@ -57,46 +57,45 @@ input[type=file]{display:none}
 <div class="wrap">
   <header>
     <h1>LYTE</h1>
-    <p class="sub">A 64 × 64 LED music visualizer. This page runs the unit's own firmware, compiled for the browser, so the
-      picture is the one the panel draws. Play a test song, a file, or let it listen through the microphone.</p>
+    <p class="sub">Audio-reactive LED display simulator. Runs the device firmware compiled to WebAssembly.</p>
   </header>
 
   <div class="stage">
     <div class="tag" id="sceneTag">loading</div>
     <div class="tag" id="bpmTag"></div>
-    <canvas id="cv" width="640" height="640" aria-label="The LED panel"></canvas>
+    <canvas id="cv" width="640" height="640" aria-label="LED matrix output"></canvas>
   </div>
   <p id="err"></p>
 
   <section class="card" aria-label="Sound">
-    <div class="row"><span class="lbl">Test songs</span>
-      <button data-demo="beat" title="A plain drum machine with bass and a melody">Beat</button>
-      <button data-demo="synth" title="Synth / electronic, 128 bpm: build, a breath, then a drop with sub-bass and wub">Synth</button>
-      <button data-demo="country" title="Country ballad, 92 bpm: brushed drums, strummed chords, fiddle, a singer">Country</button>
-      <button data-demo="rock" title="Rock, 142 bpm: power chords and a belted chorus">Rock</button>
-      <button data-demo="ambient" title="Ambient: pads, a drone, twinkles, no beat">Ambient</button>
-      <button data-demo="slowjam" title="Slow jam, 72 bpm: boom-clap, electric piano, sub-bass">Slow jam</button></div>
-    <div class="row"><span class="lbl">Listen to</span>
+    <div class="row"><span class="lbl">Test tracks</span>
+      <button data-demo="beat" title="Drum machine, bass, lead.">Beat</button>
+      <button data-demo="synth" title="Electronic, 128 BPM. Build, break, drop.">Synth</button>
+      <button data-demo="country" title="Country ballad, 92 BPM. Brushed drums, guitar, fiddle, vocal.">Country</button>
+      <button data-demo="rock" title="Rock, 142 BPM. Distorted guitar, vocal.">Rock</button>
+      <button data-demo="ambient" title="Ambient. Pads, drone, no percussion.">Ambient</button>
+      <button data-demo="slowjam" title="Slow jam, 72 BPM. Drums, electric piano, sub-bass.">Slow jam</button></div>
+    <div class="row"><span class="lbl">Input</span>
       <button id="fileBtn">Audio file</button><input type="file" id="fileIn" accept="audio/*,video/*">
       <button id="micBtn">Microphone</button>
-      <button id="tabBtn" title="Another browser tab (a web player): pick it and tick 'Share tab audio'. Chrome and Edge on a computer.">Tab audio</button>
+      <button id="tabBtn" title="Audio from another browser tab. Enable 'Share tab audio' in the dialog. Chrome and Edge (desktop) only.">Tab audio</button>
       <button id="stopBtn" disabled>Stop</button></div>
-    <div class="row"><span id="now">Nothing playing: the panel idles as the unit does in a quiet room.</span></div>
+    <div class="row"><span id="now">No input.</span></div>
   </section>
 
   <section class="card" aria-label="Pattern and palette">
-    <div class="row"><button id="pattern" aria-label="The box's button">PATTERN</button>
-      <span class="hint">The box's one button: tap for the next pattern, hold for the next palette, hold 4 s for Auto.</span></div>
+    <div class="row"><button id="pattern" aria-label="Pattern button">PATTERN</button>
+      <span class="hint">Short press: next pattern. Long press: next palette. 4 s press: Auto.</span></div>
     <div class="row"><span class="lbl">Pattern</span><span class="row" id="modes"></span></div>
     <div class="row"><span class="lbl">Palette</span><span class="row" id="pals"></span></div>
     <div class="row"><span class="lbl">Sensitivity</span><input id="sens" type="range" min="-2" max="2" step="0.01" value="0"><span class="val" id="sensV">1.00×</span></div>
     <div class="row"><span class="lbl">Brightness</span><input id="bri" type="range" min="0.2" max="1.6" step="0.01" value="1"><span class="val" id="briV">100%</span></div>
-    <div class="row"><span class="lbl">View</span><button id="smokedBtn" class="on" title="The smoked acrylic window: the dots soften">Smoked window</button><button id="glowBtn" class="on" title="The light spilling between dots">Glow</button></div>
+    <div class="row"><span class="lbl">View</span><button id="smokedBtn" class="on" title="Emulates the smoked acrylic window.">Smoked window</button><button id="glowBtn" class="on" title="Emulates light bleed between LEDs.">Glow</button></div>
   </section>
 
-  <section class="card" aria-label="What it hears">
+  <section class="card" aria-label="Analysis">
     <div class="meters" id="meters"></div>
-    <div id="info">—</div>
+    <div id="info"></div>
   </section>
 
   <section class="card">
@@ -105,13 +104,13 @@ input[type=file]{display:none}
       <div class="row"><span class="lbl">LED contrast</span><input id="con" type="range" min="0" max="100" step="1" value="0"><span class="val" id="conV">0</span></div>
       <div class="row"><span class="lbl">3 mirrors</span><span class="hint" style="min-width:60px">contrast</span><input id="con3" type="range" min="0" max="100" step="1" value="50"><span class="val" id="con3V">50</span></div>
       <div class="row"><span class="lbl"></span><span class="hint" style="min-width:60px">solid</span><input id="sol3" type="range" min="0" max="100" step="1" value="65"><span class="val" id="sol3V">65</span></div>
-      <div class="row"><span class="lbl">Auto</span><button id="smokeAutoBtn" class="on" title="Smoke may take Plasma's turn in slow, soft songs">Smoke in Auto</button>
-        <button id="classicBtn" title="The original tunnel portal in place of hyperspace">Classic portal</button></div>
-      <div class="row"><button id="defaultsBtn">Back to the unit's settings</button></div>
+      <div class="row"><span class="lbl">Auto</span><button id="smokeAutoBtn" class="on" title="Include Smoke in Auto rotation.">Smoke in Auto</button>
+        <button id="classicBtn" title="Use the classic portal in place of Hyperspace.">Classic portal</button></div>
+      <div class="row"><button id="defaultsBtn">Restore defaults</button></div>
     </details>
   </section>
 
-  <footer>The unit's firmware, running in your browser. Sound is analysed on this device and never leaves it.</footer>
+  <footer>Device firmware compiled to WebAssembly. Audio is processed locally and is not transmitted.</footer>
 </div>
 <script type="module" src="app.js"></script>
 </body>
